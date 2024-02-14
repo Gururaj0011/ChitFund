@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.18;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+
+contract ChitFundsToken is ERC20, Ownable {
+    enum ContributionLevel { LocalChit, HighClassChit, SuperiorChit }
+
+    event ContributionRedeemed(address indexed account, ContributionLevel contributionLevel, uint256 contributionCost);
+
+    mapping(address => ContributionLevel) public userContributions;
+
+    uint256 public constant LocalChitCost = 1000;
+    uint256 public constant HighClassChitCost = 2000;
+    uint256 public constant SuperiorChitCost = 5000;
+
+    constructor(address initialOwner) ERC20("CHITS", "CHT") Ownable(initialOwner) {}
+
+    function mintTokens(address to, uint256 total) public onlyOwner {
+        _mint(to, total);
+    }
+
+    function burnTokens(uint256 total) public {
+        require(total > 0, "The total to burn must be greater than zero");
+        require(balanceOf(msg.sender) >= total, "Insufficient funds for token burn");
+        _burn(msg.sender, total);
+    }
+
+    function redeemContribution(uint8 contributionType) public {
+        require(contributionType == 1 || contributionType == 2 || contributionType == 3, "Invalid contribution type");
+
+        ContributionLevel contribution;
+        uint256 contributionCost;
+
+        if (contributionType == 1) {
+            require(balanceOf(msg.sender) >= LocalChitCost, "Insufficient funds for Local Chit contribution");
+            contribution = ContributionLevel.LocalChit;
+            contributionCost = LocalChitCost;
+            _burn(msg.sender, contributionCost);
+        } else if (contributionType == 2) {
+            require(balanceOf(msg.sender) >= HighClassChitCost, "Insufficient funds for High Class Chit contribution");
+            contribution = ContributionLevel.HighClassChit;
+            contributionCost = HighClassChitCost;
+            _burn(msg.sender, contributionCost);
+        } else {
+            require(balanceOf(msg.sender) >= SuperiorChitCost, "Insufficient funds for Superior Chit contribution");
+            contribution = ContributionLevel.SuperiorChit;
+            contributionCost = SuperiorChitCost;
+            _burn(msg.sender, contributionCost);
+        }
+
+        userContributions[msg.sender] = contribution;
+        emit ContributionRedeemed(msg.sender, contribution, contributionCost);
+    }
+
+    function transferContributionTokens(address user, uint256 total) external {
+        require(user != address(0), "Invalid user address provided");
+        require(balanceOf(msg.sender) >= total, "Insufficient funds for token transfer");
+        _transfer(msg.sender, user, total);
+    }
+}
